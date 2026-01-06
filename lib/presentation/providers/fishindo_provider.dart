@@ -201,6 +201,19 @@ final fishindoAllProvider = FutureProvider<List<FishindoModel>>((ref) async {
   return repository.getFishindoAll();
 });
 
+final fishindoListProvider = FutureProvider.family<List<FishindoModel>, int?>((
+  ref,
+  jenisIkanId,
+) async {
+  final repo = ref.read(fishindoRepositoryProvider);
+
+  if (jenisIkanId == null || jenisIkanId == 0) {
+    return repo.getFishindoAll();
+  } else {
+    return repo.getFishindoByJenis(jenisIkanId);
+  }
+});
+
 /// =======================
 /// GET FISHINDO BY ID
 /// =======================

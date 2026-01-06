@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:fishindo_app/core/constants/app_colors.dart';
 import '../../providers/user_provider.dart';
 import '../fishindo/fishindo_list_page.dart';
+import '../../providers/jenisikan_provider.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -43,6 +44,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final userProfile = ref.watch(userProfileProvider);
+    final jenisikanState = ref.watch(jenisikanAllProvider);
 
     return PopScope(
       canPop: false,
@@ -86,7 +88,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Home Menu",
+                      "Home Page",
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -94,43 +96,43 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 1.25,
-                      children: [
-                        _fishBox(
-                          context,
-                          title: "IKAN KAKAP",
-                          berat: "120 Kg",
-                          harga: "Rp 12.000.000",
-                          jenisIkanId: 1,
-                        ),
-                        _fishBox(
-                          context,
-                          title: "IKAN TENGGIRI",
-                          berat: "90 Kg",
-                          harga: "Rp 10.500.000",
-                          jenisIkanId: 2,
-                        ),
-                        _fishBox(
-                          context,
-                          title: "IKAN KERAPU",
-                          berat: "60 Kg",
-                          harga: "Rp 9.000.000",
-                          jenisIkanId: 3,
-                        ),
-                        _fishBox(
-                          context,
-                          title: "IKAN LAINNYA",
-                          berat: "40 Kg",
-                          harga: "Rp 4.500.000",
-                          jenisIkanId: 0, // tampilkan semua
-                        ),
-                      ],
+
+                    jenisikanState.when(
+                      data: (items) {
+                        return GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                                childAspectRatio: 1.25,
+                              ),
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            final ikan = items[index];
+                            return _fishBox(
+                              context,
+                              title: ikan.name.toUpperCase(),
+                              berat: "0 Kg", // sementara
+                              harga: "Rp 0", // sementara
+                              jenisIkanId: ikan.id,
+                            );
+                          },
+                        );
+                      },
+                      loading:
+                          () =>
+                              const Center(child: CircularProgressIndicator()),
+                      error:
+                          (e, _) => Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              "Error: $e",
+                              style: const TextStyle(color: AppColors.danger),
+                            ),
+                          ),
                     ),
                   ],
                 ),

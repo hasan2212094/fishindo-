@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fishindo_app/core/constants/app_colors.dart';
 import 'package:fishindo_app/presentation/providers/jenisikan_provider.dart';
+import 'package:fishindo_app/presentation/providers/fishindo_provider.dart';
+import 'package:fishindo_app/data/models/jenisikan_model.dart';
 
 class JenisikanEditPage extends ConsumerStatefulWidget {
   final int id;
@@ -63,8 +65,15 @@ class _JenisikanEditPageState extends ConsumerState<JenisikanEditPage> {
     }
 
     // Listener untuk sukses update
-    ref.listen(jenisikanEditProvider, (previous, next) {
+    ref.listen<AsyncValue<JenisIkanModel?>>(jenisikanEditProvider, (
+      previous,
+      next,
+    ) {
       if (next is AsyncData && next.value != null) {
+        // 🔥 INI YANG KAMU BUTUH
+        ref.invalidate(jenisikanByIdProvider(widget.id));
+        // kalau fishindo pakai relasi jenis ikan
+
         setState(() {
           isSuccess = true;
         });

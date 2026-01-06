@@ -6,19 +6,24 @@ import 'package:open_filex/open_filex.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../providers/fishindo_provider.dart';
+import '../../../data/models/fishindo_model.dart';
 import '../home/home_menu.dart';
 import 'fishindo_view_page.dart';
 
 class FishindoListPage extends ConsumerStatefulWidget {
   final int? jenisIkanId;
 
-  const FishindoListPage({
-    super.key,
-    this.jenisIkanId,
-  });
+  const FishindoListPage({super.key, this.jenisIkanId});
 
   @override
   ConsumerState<FishindoListPage> createState() => _FishindoListPageState();
+  double hitungTotalTimbangan(List<FishindoModel> list) {
+    return list.fold(0, (sum, item) => sum + (item.timbangan ?? 0));
+  }
+
+  double hitungTotalHarga(List<FishindoModel> list) {
+    return list.fold(0, (sum, item) => sum + (item.harga ?? 0));
+  }
 }
 
 /// local state (auto dispose)
@@ -34,10 +39,12 @@ class _FishindoListPageState extends ConsumerState<FishindoListPage> {
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: AppColors.purple,
-      statusBarIconBrightness: Brightness.light,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: AppColors.purple,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
 
     final fishindoState = ref.watch(fishindoAllProvider);
     final isFilterVisible = ref.watch(isFilterVisibleProvider);
@@ -91,36 +98,35 @@ class _FishindoListPageState extends ConsumerState<FishindoListPage> {
                   color:
                       exportState.isLoading ? Colors.grey[300] : Colors.white,
                 ),
-                onPressed: exportState.isLoading
-                    ? null
-                    : () async {
-                        await ref
-                            .read(fishindoExportProvider.notifier)
-                            .export();
+                onPressed:
+                    exportState.isLoading
+                        ? null
+                        : () async {
+                          await ref
+                              .read(fishindoExportProvider.notifier)
+                              .export();
 
-                        final path =
-                            ref.read(fishindoExportProvider).value ?? "";
+                          final path =
+                              ref.read(fishindoExportProvider).value ?? "";
 
-                        if (!context.mounted) return;
+                          if (!context.mounted) return;
 
-                        if (path.isNotEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text("Download berhasil\n$path"),
-                              action: SnackBarAction(
-                                label: "OPEN",
-                                onPressed: () => OpenFilex.open(path),
+                          if (path.isNotEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("Download berhasil\n$path"),
+                                action: SnackBarAction(
+                                  label: "OPEN",
+                                  onPressed: () => OpenFilex.open(path),
+                                ),
                               ),
-                            ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Download gagal"),
-                            ),
-                          );
-                        }
-                      },
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Download gagal")),
+                            );
+                          }
+                        },
               );
             },
           ),
@@ -136,17 +142,29 @@ class _FishindoListPageState extends ConsumerState<FishindoListPage> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text("Error: $e")),
               data: (fishindos) {
-                /// ===== SEARCH FILTER =====
                 final lowerQuery = searchQuery.toLowerCase();
-                final filtered = fishindos.where((f) {
-                  return (f.jenisikan?.name
-                              .toLowerCase()
-                              .contains(lowerQuery) ??
-                          false) ||
-                      f.lokasi.toLowerCase().contains(lowerQuery) ||
-                      f.nelayan.toLowerCase().contains(lowerQuery) ||
-                      f.userByName.toLowerCase().contains(lowerQuery);
-                }).toList();
+
+                final filtered =
+                    fishindos.where((f) {
+                      /// 1️⃣ SEARCH FILTER
+                      final matchSearch =
+                          (f.jenisikan?.name.toLowerCase().contains(
+                                lowerQuery,
+                              ) ??
+                              false) ||
+                          f.lokasi.toLowerCase().contains(lowerQuery) ||
+                          f.nelayan.toLowerCase().contains(lowerQuery) ||
+                          f.userByName.toLowerCase().contains(lowerQuery);
+
+                      /// 2️⃣ FILTER JENIS IKAN
+                      final matchJenis =
+                          widget.jenisIkanId == null ||
+                          widget.jenisIkanId == 0 ||
+                          f.jenisikan?.id == widget.jenisIkanId;
+
+                      /// 3️⃣ HARUS LOLOS KEDUANYA
+                      return matchSearch && matchJenis;
+                    }).toList();
 
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -157,8 +175,10 @@ class _FishindoListPageState extends ConsumerState<FishindoListPage> {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: TextField(
-                          onChanged: (v) =>
-                              ref.read(searchQueryProvider.notifier).state = v,
+                          onChanged:
+                              (v) =>
+                                  ref.read(searchQueryProvider.notifier).state =
+                                      v,
                           decoration: InputDecoration(
                             hintText: "Search...",
                             prefixIcon: const Icon(Icons.search, size: 16),
@@ -192,11 +212,15 @@ class _FishindoListPageState extends ConsumerState<FishindoListPage> {
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                         title: Text(
                           fishindo.jenisikan?.name ?? "-",
                           style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 14),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,8 +232,9 @@ class _FishindoListPageState extends ConsumerState<FishindoListPage> {
                             _info(
                               "Date",
                               fishindo.createdAt != null
-                                  ? DateFormat('dd MMM yyyy')
-                                      .format(fishindo.createdAt!)
+                                  ? DateFormat(
+                                    'dd MMM yyyy',
+                                  ).format(fishindo.createdAt!)
                                   : "-",
                             ),
                           ],
@@ -219,8 +244,9 @@ class _FishindoListPageState extends ConsumerState<FishindoListPage> {
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  FishindoViewPage(fishindoId: fishindo.id),
+                              builder:
+                                  (_) =>
+                                      FishindoViewPage(fishindoId: fishindo.id),
                             ),
                           );
                           ref.invalidate(fishindoAllProvider);
@@ -257,10 +283,7 @@ class _FishindoListPageState extends ConsumerState<FishindoListPage> {
   Widget _info(String label, String value) {
     return Text(
       "$label : ${value.isNotEmpty ? value : '-'}",
-      style: const TextStyle(
-        fontSize: 10,
-        color: AppColors.secondary,
-      ),
+      style: const TextStyle(fontSize: 10, color: AppColors.secondary),
     );
   }
 }

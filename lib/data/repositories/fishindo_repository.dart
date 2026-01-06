@@ -32,6 +32,31 @@ class FishindoRepository {
     }
   }
 
+  /// 🔹 Ambil data fishindo berdasarkan jenis ikan
+  Future<List<FishindoModel>> getFishindoByJenis(int jenisIkanId) async {
+    try {
+      _logger.i("Fetching fishindo by jenis ikan ID: $jenisIkanId");
+
+      final response = await fishindoApi.listFishindoByJenis(jenisIkanId);
+
+      final data =
+          response
+              .map<FishindoModel>((json) => FishindoModel.fromJson(json))
+              .toList()
+            ..sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
+
+      _logger.i("Total fishindo by jenis fetched: ${data.length}");
+      return data;
+    } catch (e, stack) {
+      _logger.e(
+        "Error getFishindoByJenis($jenisIkanId)",
+        error: e,
+        stackTrace: stack,
+      );
+      rethrow;
+    }
+  }
+
   /// 🔹 Ambil semua data termasuk yang terhapus
   Future<List<FishindoModel>> getAll() async {
     try {

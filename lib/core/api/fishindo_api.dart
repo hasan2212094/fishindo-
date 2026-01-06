@@ -40,8 +40,9 @@ class FishindoApi {
 
         if (decoded is Map<String, dynamic>) {
           if (decoded.containsKey('data')) {
-            _logger
-                .i('✅ Found key "data" with ${decoded['data'].length} items');
+            _logger.i(
+              '✅ Found key "data" with ${decoded['data'].length} items',
+            );
             return decoded['data'] as List<dynamic>;
           } else {
             _logger.w('⚠️ Response Map without "data" key');
@@ -55,12 +56,44 @@ class FishindoApi {
           throw Exception('Invalid response format');
         }
       } else {
-        _logger
-            .e('❌ HTTP Error ${response.statusCode}: ${response.reasonPhrase}');
+        _logger.e(
+          '❌ HTTP Error ${response.statusCode}: ${response.reasonPhrase}',
+        );
         throw Exception("Failed to load fishindo");
       }
     } catch (e, s) {
       _logger.e("❌ Error listFishindoAll", error: e, stackTrace: s);
+      rethrow;
+    }
+  }
+
+  /// ✅ Ambil data Fishindo berdasarkan jenis ikan
+  Future<List<dynamic>> listFishindoByJenis(int jenisIkanId) async {
+    try {
+      final token = await StorageService.getToken();
+      final url = '${AppConfig.baseUrl}/fishindo?jenis_ikan_id=$jenisIkanId';
+
+      _logger.i('📡 GET BY JENIS IKAN: $url');
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      _logger.i('🔹 Status: ${response.statusCode}');
+      _logger.i('📦 Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        return decoded['data'] as List<dynamic>;
+      } else {
+        throw Exception('Failed to load fishindo by jenis ikan');
+      }
+    } catch (e, s) {
+      _logger.e('❌ Error listFishindoByJenis', error: e, stackTrace: s);
       rethrow;
     }
   }
@@ -235,7 +268,8 @@ class FishindoApi {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        final errorMessage = jsonDecode(response.body)['error'] ??
+        final errorMessage =
+            jsonDecode(response.body)['error'] ??
             'Terjadi kesalahan saat menghapus data.';
         throw Exception(errorMessage);
       }
@@ -265,7 +299,8 @@ class FishindoApi {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        final errorMessage = jsonDecode(response.body)['error'] ??
+        final errorMessage =
+            jsonDecode(response.body)['error'] ??
             'Gagal melakukan restore data.';
         throw Exception(errorMessage);
       }
@@ -295,7 +330,8 @@ class FishindoApi {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        final errorMessage = jsonDecode(response.body)['error'] ??
+        final errorMessage =
+            jsonDecode(response.body)['error'] ??
             'Gagal melakukan force delete.';
         throw Exception(errorMessage);
       }
@@ -315,8 +351,8 @@ class FishindoApi {
       Directory? downloadsDir;
       if (Platform.isAndroid) {
         downloadsDir = await getExternalStorageDirectories(
-                type: StorageDirectory.downloads)
-            .then((dirs) => dirs?.first);
+          type: StorageDirectory.downloads,
+        ).then((dirs) => dirs?.first);
       } else if (Platform.isIOS) {
         downloadsDir = await getApplicationDocumentsDirectory();
       }
@@ -331,9 +367,7 @@ class FishindoApi {
       final response = await dio.download(
         url,
         savePath,
-        options: Options(
-          headers: {'Authorization': 'Bearer $token'},
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       _logger.d('🔹 Status: ${response.statusCode}');
@@ -367,11 +401,13 @@ class FishindoApi {
         return decoded;
       } else {
         throw Exception(
-            'Invalid response format: Expected List or Map with "data" key');
+          'Invalid response format: Expected List or Map with "data" key',
+        );
       }
     } else {
       throw Exception(
-          "Failed to load jenisikan (status: ${response.statusCode})");
+        "Failed to load jenisikan (status: ${response.statusCode})",
+      );
     }
   }
 }
