@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:fishindo_app/core/constants/app_colors.dart';
 import 'package:fishindo_app/data/models/jenisikan_model.dart';
 import 'package:fishindo_app/presentation/providers/fishindo_provider.dart';
+import 'package:fishindo_app/presentation/providers/jenisikan_provider.dart';
 
 class FishindoAddPage extends ConsumerStatefulWidget {
   const FishindoAddPage({super.key});
@@ -47,7 +48,7 @@ class _FishindoAddPageState extends ConsumerState<FishindoAddPage> {
 
   @override
   Widget build(BuildContext context) {
-    final jenisikan = ref.watch(jenisikanAllProvider);
+    final jenisikan = ref.watch(JenisfishindoAllProvider);
     final createState = ref.watch(fishindoCreateProvider);
 
     ref.listen(fishindoCreateProvider, (previous, next) {
@@ -244,6 +245,9 @@ class _FishindoAddPageState extends ConsumerState<FishindoAddPage> {
           _imagesFish,
           _imagesTimbangan,
         );
+    // 🔥 refresh list agar HomePage langsung update
+    ref.invalidate(jenisikanAllProvider);
+    ref.invalidate(fishindoListProvider(_selectedJenisIkan!.id));
   }
 
   // ================= IMAGE =================

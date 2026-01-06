@@ -182,6 +182,7 @@ import 'package:fishindo_app/data/models/fishindo_model.dart';
 import 'package:fishindo_app/data/models/jenisikan_model.dart';
 import 'package:fishindo_app/data/models/success_model.dart';
 import 'package:fishindo_app/data/repositories/fishindo_repository.dart';
+import 'package:fishindo_app/data/repositories/jenisikan_repository.dart';
 import 'package:fishindo_app/core/services/storage_service.dart';
 
 final _logger = Logger();
@@ -228,7 +229,9 @@ final fishindoIdProvider = FutureProvider.family<FishindoModel, int>((
 /// =======================
 /// GET JENIS IKAN
 /// =======================
-final jenisikanAllProvider = FutureProvider<List<JenisIkanModel>>((ref) async {
+final JenisfishindoAllProvider = FutureProvider<List<JenisIkanModel>>((
+  ref,
+) async {
   final repository = ref.read(fishindoRepositoryProvider);
   return repository.getJenisikan();
 });

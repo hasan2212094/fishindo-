@@ -62,7 +62,7 @@ class _FishindoEditPageState extends ConsumerState<FishindoEditPage> {
 
   @override
   Widget build(BuildContext context) {
-    final jenisikan = ref.watch(jenisikanAllProvider);
+    final jenisikan = ref.watch(JenisfishindoAllProvider);
     final updateState = ref.watch(fishindoUpdateProvider);
 
     void update() async {
@@ -90,6 +90,9 @@ class _FishindoEditPageState extends ConsumerState<FishindoEditPage> {
     /// Listen Update Result
     ref.listen(fishindoUpdateProvider, (previous, next) {
       if (next is AsyncData && next.value != null) {
+        // Refresh list sesuai jenis ikan yang diedit
+        final jenisIkanId = int.parse(_selectedJenisIkan!);
+        ref.invalidate(fishindoListProvider(jenisIkanId)); // <-- tambahkan ini
         showDialog(
           context: context,
           builder:
