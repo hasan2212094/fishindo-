@@ -47,7 +47,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     final userProfile = ref.watch(userProfileProvider);
     final jenisikanState = ref.watch(jenisikanAllProvider);
-    final mainIkan = ['IKAN KERAPU', 'IKAN TENGGIRI', 'IKAN KAKAP'];
+    final mainIkanAsync = ref.watch(mainJenisIkanProvider);
 
     return PopScope(
       canPop: false,
@@ -98,37 +98,49 @@ class _HomePageState extends ConsumerState<HomePage> {
                 /// ===== HOME BUTTONS UTAMA =====
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children:
-                        mainIkan.map((ikanName) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(60),
-                                backgroundColor: AppColors.purple,
-                              ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (_) => FishindoListByTypePage(
-                                          jenisIkanName: ikanName,
-                                        ),
+                  child: mainIkanAsync.when(
+                    loading:
+                        () => const Center(child: CircularProgressIndicator()),
+                    error:
+                        (e, _) => Text(
+                          e.toString(),
+                          style: const TextStyle(color: AppColors.danger),
+                        ),
+                    data: (items) {
+                      return Column(
+                        children:
+                            items.map((ikan) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    minimumSize: const Size.fromHeight(60),
+                                    backgroundColor: AppColors.purple,
                                   ),
-                                );
-                              },
-                              child: Text(
-                                ikanName,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white,
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) => FishindoListByTypePage(
+                                              jenisIkanName:
+                                                  ikan.name, // 🔥 dari database
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    ikan.name.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                              );
+                            }).toList(),
+                      );
+                    },
                   ),
                 ),
 

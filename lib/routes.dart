@@ -10,41 +10,72 @@ import 'package:fishindo_app/presentation/pages/fishindo/fishindo_add_page.dart'
 import 'package:fishindo_app/presentation/pages/jenisikan/jenisikan_add_page.dart';
 import 'package:fishindo_app/presentation/pages/jenisikan/jenisikan_list_page.dart';
 import 'presentation/pages/auth/login_page.dart';
+import 'presentation/widgets/connection_snackbar.dart';
 
 class Routes {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case '/splash':
-        return MaterialPageRoute(builder: (_) => const SplashScreenPage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: SplashScreenPage()),
+        );
+
       case '/login':
-        return MaterialPageRoute(builder: (_) => const LoginPage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: LoginPage()),
+        );
+
       case '/homemenu':
-        return MaterialPageRoute(builder: (_) => const HomeMenuPage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: HomeMenuPage()),
+        );
+
       case '/home':
-        return MaterialPageRoute(builder: (_) => const HomePage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: HomePage()),
+        );
+
       case '/user':
-        return MaterialPageRoute(builder: (_) => const UserListPage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: UserListPage()),
+        );
 
       case '/useradd':
-        return MaterialPageRoute(builder: (_) => const UserAddPage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: UserAddPage()),
+        );
+
       case '/fishindo':
-        return MaterialPageRoute(builder: (_) => const FishindoListPage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: FishindoListPage()),
+        );
+
       case '/fishindoadd':
-        return MaterialPageRoute(builder: (_) => const FishindoAddPage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: FishindoAddPage()),
+        );
+
       case '/jenisikan':
-        return MaterialPageRoute(builder: (_) => const JenisikanListPage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: JenisikanListPage()),
+        );
+
       case '/jenisikanadd':
-        return MaterialPageRoute(builder: (_) => const JenisikanAddPage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: JenisikanAddPage()),
+        );
 
       case '/profile':
-        return MaterialPageRoute(builder: (_) => const ProfilePage());
+        return MaterialPageRoute(
+          builder: (_) => const ConnectionSnackbar(child: ProfilePage()),
+        );
 
       default:
         return MaterialPageRoute(
           builder:
-              (_) => Scaffold(
-                body: Center(
-                  child: Text('No route defined for ${settings.name}'),
+              (_) => const ConnectionSnackbar(
+                child: Scaffold(
+                  body: Center(child: Text('No route defined for this page')),
                 ),
               ),
         );

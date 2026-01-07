@@ -184,6 +184,7 @@ import 'package:fishindo_app/data/models/success_model.dart';
 import 'package:fishindo_app/data/repositories/fishindo_repository.dart';
 import 'package:fishindo_app/data/repositories/jenisikan_repository.dart';
 import 'package:fishindo_app/core/services/storage_service.dart';
+import 'package:fishindo_app/presentation/providers/jenisikan_provider.dart';
 
 final _logger = Logger();
 
@@ -347,6 +348,16 @@ class DeleteNotifier extends StateNotifier<AsyncValue<SuccessModel?>> {
     }
   }
 }
+
+/// ================================
+/// PROVIDER IKAN UTAMA (HOME BUTTON)
+/// ================================
+final mainJenisIkanProvider = FutureProvider<List<JenisIkanModel>>((ref) async {
+  final allIkan = await ref.watch(jenisikanAllProvider.future);
+
+  // Filter ikan utama (contoh: KERAPU, KAKAP, TENGGIRI, dll)
+  return allIkan.where((ikan) => ikan.isMain == true).toList();
+});
 
 /// =======================
 /// EXPORT EXCEL

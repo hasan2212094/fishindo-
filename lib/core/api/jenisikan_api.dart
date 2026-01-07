@@ -37,7 +37,9 @@ class JenisikanApi {
 
     final response = await _dio.post(
       '${AppConfig.baseUrl}/jenisikan',
-      data: {'name': name},
+      data: {
+        'name': name,
+      },
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
@@ -50,7 +52,9 @@ class JenisikanApi {
 
     final response = await _dio.put(
       '${AppConfig.baseUrl}/jenisikan/$id',
-      data: {'name': name},
+      data: {
+        'name': name
+      },
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
