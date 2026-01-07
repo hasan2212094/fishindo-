@@ -70,10 +70,8 @@ class _JenisikanEditPageState extends ConsumerState<JenisikanEditPage> {
       next,
     ) {
       if (next is AsyncData && next.value != null) {
-        // 🔥 INI YANG KAMU BUTUH
-        ref.invalidate(jenisikanByIdProvider(widget.id));
-        // kalau fishindo pakai relasi jenis ikan
-
+        // refresh list (halaman list supaya terlihat perubahan)
+        ref.invalidate(jenisikanAllProvider);
         setState(() {
           isSuccess = true;
         });

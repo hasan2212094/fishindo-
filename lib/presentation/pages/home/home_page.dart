@@ -7,6 +7,8 @@ import 'package:fishindo_app/core/constants/app_colors.dart';
 import '../../providers/user_provider.dart';
 import '../fishindo/fishindo_list_page.dart';
 import '../../providers/jenisikan_provider.dart';
+import '../../providers/fishindo_provider.dart';
+import '../../pages/fishindo/fishindo_list_by_type_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -45,6 +47,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Widget build(BuildContext context) {
     final userProfile = ref.watch(userProfileProvider);
     final jenisikanState = ref.watch(jenisikanAllProvider);
+    final mainIkan = ['IKAN KERAPU', 'IKAN TENGGIRI', 'IKAN KAKAP'];
 
     return PopScope(
       canPop: false,
@@ -53,91 +56,184 @@ class _HomePageState extends ConsumerState<HomePage> {
       },
       child: Scaffold(
         backgroundColor: AppColors.light,
-        body: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// ===== HEADER =====
-              userProfile.when(
-                data:
-                    (user) => _buildHeader(
-                      getGreeting(),
-                      getFormattedDate(),
-                      user.name,
-                      user.rolename,
-                    ),
-                loading:
-                    () => const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                error:
-                    (error, _) => Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(
-                        error.toString(),
-                        style: const TextStyle(color: AppColors.danger),
-                      ),
-                    ),
-              ),
+        body: RefreshIndicator(
+          onRefresh: () async {
+            // 🔥 Refresh semua provider terkait
+            ref.invalidate(jenisikanAllProvider);
 
-              /// ===== HOME MENU =====
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Home Page",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.dark,
+            final jenisikanItems = await ref.read(jenisikanAllProvider.future);
+            for (var ikan in jenisikanItems) {
+              ref.invalidate(fishindoListProvider(ikan.id));
+            }
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                /// ===== HEADER =====
+                userProfile.when(
+                  data:
+                      (user) => _buildHeader(
+                        getGreeting(),
+                        getFormattedDate(),
+                        user.name,
+                        user.rolename,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    jenisikanState.when(
-                      data: (items) {
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 1.25,
-                              ),
-                          itemCount: items.length,
-                          itemBuilder: (context, index) {
-                            final ikan = items[index];
-                            return _fishBox(
-                              context,
-                              title: ikan.name.toUpperCase(),
-                              berat: "0 Kg", // sementara
-                              harga: "Rp 0", // sementara
-                              jenisIkanId: ikan.id,
-                            );
-                          },
-                        );
-                      },
-                      loading:
-                          () =>
-                              const Center(child: CircularProgressIndicator()),
-                      error:
-                          (e, _) => Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              "Error: $e",
-                              style: const TextStyle(color: AppColors.danger),
-                            ),
-                          ),
-                    ),
-                  ],
+                  loading:
+                      () => const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                  error:
+                      (error, _) => Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          error.toString(),
+                          style: const TextStyle(color: AppColors.danger),
+                        ),
+                      ),
                 ),
-              ),
-            ],
+
+                /// ===== HOME BUTTONS UTAMA =====
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children:
+                        mainIkan.map((ikanName) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(60),
+                                backgroundColor: AppColors.purple,
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (_) => FishindoListByTypePage(
+                                          jenisIkanName: ikanName,
+                                        ),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                ikanName,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                  ),
+                ),
+
+                /// ===== HOME MENU LAMA (GRIDVIEW / SUMMARY) =====
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Home Page Lama",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.dark,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      jenisikanState.when(
+                        data: (items) {
+                          // 🔹 Filter ikan utama dulu
+                          final mainIkanNames = ['KERAPU', 'TENGGIRI', 'KAKAP'];
+                          final mainItems =
+                              items
+                                  .where(
+                                    (ikan) => mainIkanNames.contains(
+                                      ikan.name.toUpperCase(),
+                                    ),
+                                  )
+                                  .toList();
+
+                          // 🔹 Ikan baru tambahan
+                          final otherItems =
+                              items
+                                  .where(
+                                    (ikan) =>
+                                        !mainIkanNames.contains(
+                                          ikan.name.toUpperCase(),
+                                        ),
+                                  )
+                                  .toList();
+
+                          final displayItems = [...mainItems, ...otherItems];
+
+                          return GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                  childAspectRatio: 1.25,
+                                ),
+                            itemCount: displayItems.length,
+                            itemBuilder: (context, index) {
+                              final ikan = displayItems[index];
+
+                              final fishListAsync = ref.watch(
+                                fishindoListProvider(ikan.id),
+                              );
+
+                              double totalBerat = 0;
+                              double totalHarga = 0;
+
+                              fishListAsync.whenData((list) {
+                                totalBerat = list.fold(
+                                  0,
+                                  (sum, item) => sum + item.timbangan,
+                                );
+                                totalHarga = list.fold(
+                                  0,
+                                  (sum, item) => sum + item.harga,
+                                );
+                              });
+
+                              return _fishBox(
+                                context,
+                                title: ikan.name.toUpperCase(),
+                                berat: "${totalBerat.toStringAsFixed(2)} Kg",
+                                harga: "Rp ${totalHarga.toStringAsFixed(0)}",
+                                jenisIkanId: ikan.id,
+                              );
+                            },
+                          );
+                        },
+                        loading:
+                            () => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                        error:
+                            (e, _) => Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Text(
+                                "Error: $e",
+                                style: const TextStyle(color: AppColors.danger),
+                              ),
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
