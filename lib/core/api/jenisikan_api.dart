@@ -37,25 +37,20 @@ class JenisikanApi {
 
     final response = await _dio.post(
       '${AppConfig.baseUrl}/jenisikan',
-      data: {
-        'name': name,
-      },
+      data: {'name': name},
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
     return JenisIkanModel.fromJson(response.data);
   }
 
-  Future<JenisIkanModel> update(int id, String nomor, {String? client}) async {
+  Future<JenisIkanModel> update(int id, String name) async {
     final token = await StorageService.getToken();
     _logger.i('✏️ PUT: ${AppConfig.baseUrl}/jenisikan/$id');
 
     final response = await _dio.put(
       '${AppConfig.baseUrl}/jenisikan/$id',
-      data: {
-        'nomor': nomor,
-        if (client != null) 'client': client,
-      },
+      data: {'name': name},
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
