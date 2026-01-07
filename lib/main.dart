@@ -1,63 +1,46 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:fishindo_app/core/services/snackbar_service.dart';
-import 'package:fishindo_app/presentation/pages/home/home_page.dart';
+import 'presentation/pages/auth/login_page.dart';
+import 'presentation/pages/home/home_menu.dart';
+import 'presentation/providers/auth_provider.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
 
-class _MyAppState extends State<MyApp> {
-  late StreamSubscription _subscription;
-  ConnectivityResult? _lastStatus;
+    return authState.when(
+      data: (user) {
+        if (user == null) {
+          // Belum login → langsung LoginPage
+          return const MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: LoginPage(),
+          );
+        }
 
-  @override
-  void initState() {
-    super.initState();
-
-    _subscription = Connectivity().onConnectivityChanged.listen((status) {
-      if (_lastStatus == status) return;
-      _lastStatus = status;
-
-      scaffoldMessengerKey.currentState
-        ?..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(
-              status == ConnectivityResult.none
-                  ? 'Connection lost'
-                  : 'Connection restored',
-            ),
-            backgroundColor:
-                status == ConnectivityResult.none ? Colors.red : Colors.green,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
+        // Sudah login → langsung HomeMenu
+        return const MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: HomeMenuPage(), // sesuaikan nama class kamu
         );
-    });
-  }
-
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      scaffoldMessengerKey: scaffoldMessengerKey, // ⭐ INI KUNCI UTAMA
-      debugShowCheckedModeBanner: false,
-      home: const HomePage(), // app kamu
+      },
+      loading:
+          () => const MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(body: Center(child: CircularProgressIndicator())),
+          ),
+      error:
+          (e, _) => MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(body: Center(child: Text('Auth error'))),
+          ),
     );
   }
 }

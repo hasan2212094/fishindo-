@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import 'dart:async';
 
 final appVersionProvider = FutureProvider<String>((ref) async {
   final info = await PackageInfo.fromPlatform();
@@ -25,6 +26,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
 
   late final Connectivity _connectivity;
+  late final Stream<ConnectivityResult> _connectivityStream;
+  late final StreamSubscription<ConnectivityResult> _connectivitySubscription;
   ConnectivityResult _connectionStatus = ConnectivityResult.none;
 
   @override
@@ -33,10 +36,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     // 🔹 Setup koneksi
     _connectivity = Connectivity();
+    _connectivityStream = _connectivity.onConnectivityChanged;
+
+    // cek koneksi awal
     _connectivity.checkConnectivity().then((result) {
       setState(() => _connectionStatus = result);
     });
-    _connectivity.onConnectivityChanged.listen((result) {
+
+    // listen perubahan koneksi
+    _connectivitySubscription = _connectivityStream.listen((result) {
       setState(() => _connectionStatus = result);
     });
 
@@ -44,6 +52,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSavedCredentials();
     });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription.cancel();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   /// ===== Load email & password tersimpan =====
@@ -160,6 +176,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       (value) => value!.isEmpty ? 'Password wajib diisi' : null,
                 ),
                 const SizedBox(height: 12),
+
+                /// 🔹 Status koneksi
                 Text(
                   _connectionStatus == ConnectivityResult.none
                       ? 'Tidak ada koneksi internet'
@@ -173,6 +191,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
                 authState.when(
                   data:
                       (data) => ElevatedButton(
