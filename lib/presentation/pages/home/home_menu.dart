@@ -7,12 +7,14 @@ import 'package:fishindo_app/presentation/pages/profile/profile_page.dart';
 import 'package:fishindo_app/presentation/pages/user/user_list_page.dart';
 import 'package:fishindo_app/presentation/pages/fishindo/fishindo_list_page.dart';
 import 'package:fishindo_app/presentation/pages/jenisikan/jenisikan_list_page.dart';
+import 'package:fishindo_app/presentation/pages/mainbox/mainbox_list_page.dart'; // ✅ Import MainBoxListPage
 
 import '../../../core/services/storage_service.dart';
 
 class HomeMenuPage extends ConsumerStatefulWidget {
   final int initialIndex;
   final int assignmentShowFilter;
+
   const HomeMenuPage({
     super.key,
     this.initialIndex = 0,
@@ -89,15 +91,32 @@ class _HomeMenuPageState extends ConsumerState<HomeMenuPage> {
               ),
             },
           ];
+
+          // ===== Tambahkan menu IKAN =====
+          menu.add({
+            'page': MainBoxListPage(), // ✅ MainBoxListPage
+            'item': BottomNavigationBarItem(
+              icon: Icon(
+                Icons.water,
+                color: _currentIndex == 2 ? AppColors.purple : Colors.grey,
+              ),
+              label: 'IKAN',
+            ),
+          });
+
+          // Laporan
           menu.add({
             'page': const FishindoListPage(),
-            'item': const BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart),
+            'item': BottomNavigationBarItem(
+              icon: Icon(
+                Icons.bar_chart,
+                color: _currentIndex == 3 ? AppColors.purple : Colors.grey,
+              ),
               label: 'Laporan',
             ),
           });
 
-          // ✅ Tambahkan menu khusus Admin di luar list literal
+          // Menu khusus Admin
           if (role == "Admin") {
             menu.addAll([
               {
@@ -105,7 +124,10 @@ class _HomeMenuPageState extends ConsumerState<HomeMenuPage> {
                 'item': BottomNavigationBarItem(
                   icon: Icon(
                     Icons.manage_accounts_rounded,
-                    color: _currentIndex == 6 ? AppColors.purple : Colors.grey,
+                    color:
+                        _currentIndex == menu.length
+                            ? AppColors.purple
+                            : Colors.grey,
                   ),
                   label: 'Manage User',
                 ),
@@ -113,14 +135,14 @@ class _HomeMenuPageState extends ConsumerState<HomeMenuPage> {
             ]);
           }
 
-          // ✅ Tambahkan profile terakhir
+          // Profile terakhir
           menu.add({
             'page': const ProfilePage(),
             'item': BottomNavigationBarItem(
               icon: Icon(
                 Icons.person,
                 color:
-                    _currentIndex == (menu.length)
+                    _currentIndex == menu.length
                         ? AppColors.purple
                         : Colors.grey,
               ),

@@ -9,8 +9,10 @@ import 'package:fishindo_app/core/constants/app_colors.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/jenisikan_provider.dart';
 import '../../providers/fishindo_provider.dart';
+import '../../providers/mainbox_provider.dart'; // MainBox Provider
 import '../fishindo/fishindo_list_page.dart';
 import '../../pages/fishindo/fishindo_list_by_type_page.dart';
+import '../../pages/mainbox/mainbox_list_page.dart'; // MainBox List Page
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -35,7 +37,6 @@ class _HomePageState extends ConsumerState<HomePage> {
           status == ConnectivityResult.none ? Colors.red : Colors.green;
     });
 
-    // SnackBar notifikasi
     if (mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final messenger = ScaffoldMessenger.of(context);
@@ -59,6 +60,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   // ================= CACHE =================
   List<dynamic>? _cachedMainIkan;
   List<dynamic>? _cachedJenisIkan;
+  List<dynamic>? _cachedMainBox;
 
   // ================= GREETING & DATE =================
   String getGreeting() {
@@ -107,6 +109,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final userProfile = ref.watch(userProfileProvider);
     final jenisikanState = ref.watch(jenisikanAllProvider);
     final mainIkanAsync = ref.watch(mainJenisIkanProvider);
+    final mainBoxAsync = ref.watch(mainBoxAllProvider); // MainBox provider
 
     return PopScope(
       canPop: false,
@@ -126,6 +129,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 for (var ikan in jenisikanItems) {
                   ref.invalidate(fishindoListProvider(ikan.id));
                 }
+                ref.invalidate(mainBoxAllProvider); // Refresh MainBox
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -159,28 +163,65 @@ class _HomePageState extends ConsumerState<HomePage> {
                     // ===== MAIN BUTTONS =====
                     Padding(
                       padding: const EdgeInsets.all(16),
-                      child: mainIkanAsync.when(
-                        data: (items) {
-                          _cachedMainIkan = items;
-                          return buildMainIkanButtons(items);
-                        },
-                        loading:
-                            () =>
-                                _cachedMainIkan != null
-                                    ? buildMainIkanButtons(_cachedMainIkan!)
-                                    : const Center(
-                                      child: CircularProgressIndicator(),
+                      child: Column(
+                        children: [
+                          mainIkanAsync.when(
+                            data: (items) {
+                              _cachedMainIkan = items;
+                              return buildMainIkanButtons(items);
+                            },
+                            loading:
+                                () =>
+                                    _cachedMainIkan != null
+                                        ? buildMainIkanButtons(_cachedMainIkan!)
+                                        : const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                            error:
+                                (e, _) =>
+                                    _cachedMainIkan != null
+                                        ? buildMainIkanButtons(_cachedMainIkan!)
+                                        : Text(
+                                          e.toString(),
+                                          style: const TextStyle(
+                                            color: AppColors.danger,
+                                          ),
+                                        ),
+                          ),
+                          const SizedBox(height: 12),
+                          // ===== Tambahkan tombol MainBox =====
+                          mainBoxAsync.when(
+                            data: (boxes) {
+                              _cachedMainBox = boxes;
+                              return ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(60),
+                                  backgroundColor: Colors.teal,
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const MainBoxListPage(),
                                     ),
-                        error:
-                            (e, _) =>
-                                _cachedMainIkan != null
-                                    ? buildMainIkanButtons(_cachedMainIkan!)
-                                    : Text(
-                                      e.toString(),
-                                      style: const TextStyle(
-                                        color: AppColors.danger,
-                                      ),
-                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  'MAIN BOX',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            },
+                            loading:
+                                () => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                            error: (e, _) => const SizedBox(),
+                          ),
+                        ],
                       ),
                     ),
 
@@ -233,7 +274,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
             ),
 
-            // ===== Connection Bar: selalu muncul =====
+            // ===== Connection Bar =====
             Positioned(
               top: 0,
               right: 0,
@@ -255,7 +296,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  // ===== MAIN BUTTONS UTILITY =====
+  // ===== MAIN BUTTONS =====
   Widget buildMainIkanButtons(List<dynamic> items) {
     return Column(
       children:
@@ -336,7 +377,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  // ===== BOX IKAN =====
   Widget _fishBox(
     BuildContext context, {
     required String title,
@@ -397,7 +437,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-// ===== HEADER UTILITY =====
 Widget _buildHeader(
   String greeting,
   String formattedDate,

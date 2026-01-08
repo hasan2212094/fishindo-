@@ -32,6 +32,12 @@ class _JenisikanAddPageState extends ConsumerState<JenisikanAddPage> {
     /// Listener untuk hasil tambah
     ref.listen(jenisikanCreateProvider, (previous, next) {
       if (next is AsyncData && next.value != null) {
+        // 🔥 CACHE INVALIDATION (INI INTINYA)
+        ref.invalidate(jenisikanAllProvider);
+
+        // Optional UX: reset field
+        nameController.clear();
+
         showDialog(
           context: context,
           builder:
@@ -128,7 +134,6 @@ class _JenisikanAddPageState extends ConsumerState<JenisikanAddPage> {
                     ],
                   ),
 
-                // Field Nomor Workorder
                 TextFormField(
                   controller: nameController,
                   decoration: const InputDecoration(

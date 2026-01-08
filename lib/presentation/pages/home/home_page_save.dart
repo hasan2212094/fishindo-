@@ -24,12 +24,18 @@ class _HomePageState extends ConsumerState<HomePage> {
   late final Connectivity _connectivity;
   late final StreamSubscription<ConnectivityResult> _connectivitySubscription;
   ConnectivityResult _connectionStatus = ConnectivityResult.none;
+  Color _connectionBarColor = Colors.green;
 
   void _updateConnectionStatus(ConnectivityResult status) {
     if (_connectionStatus == status) return;
 
-    setState(() => _connectionStatus = status);
+    setState(() {
+      _connectionStatus = status;
+      _connectionBarColor =
+          status == ConnectivityResult.none ? Colors.red : Colors.green;
+    });
 
+    // SnackBar notifikasi
     if (mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final messenger = ScaffoldMessenger.of(context);
@@ -41,8 +47,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ? 'Connection lost'
                   : 'Connection restored',
             ),
-            backgroundColor:
-                status == ConnectivityResult.none ? Colors.red : Colors.green,
+            backgroundColor: _connectionBarColor,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 2),
           ),
@@ -110,125 +115,147 @@ class _HomePageState extends ConsumerState<HomePage> {
       },
       child: Scaffold(
         backgroundColor: AppColors.light,
-        body: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(jenisikanAllProvider);
-            final jenisikanItems = await ref.read(jenisikanAllProvider.future);
-            for (var ikan in jenisikanItems) {
-              ref.invalidate(fishindoListProvider(ikan.id));
-            }
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ===== HEADER =====
-                userProfile.when(
-                  data:
-                      (user) => _buildHeader(
-                        getGreeting(),
-                        getFormattedDate(),
-                        user.name,
-                        user.rolename,
-                      ),
-                  loading:
-                      () => const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                  error:
-                      (error, _) => Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          error.toString(),
-                          style: const TextStyle(color: AppColors.danger),
-                        ),
-                      ),
-                ),
+        body: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(jenisikanAllProvider);
+                final jenisikanItems = await ref.read(
+                  jenisikanAllProvider.future,
+                );
+                for (var ikan in jenisikanItems) {
+                  ref.invalidate(fishindoListProvider(ikan.id));
+                }
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ===== HEADER =====
+                    userProfile.when(
+                      data:
+                          (user) => _buildHeader(
+                            getGreeting(),
+                            getFormattedDate(),
+                            user.name,
+                            user.rolename,
+                          ),
+                      loading:
+                          () => const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                      error:
+                          (error, _) => Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              error.toString(),
+                              style: const TextStyle(color: AppColors.danger),
+                            ),
+                          ),
+                    ),
 
-                // ===== HOME BUTTONS UTAMA =====
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: mainIkanAsync.when(
-                    loading:
-                        () =>
-                            _cachedMainIkan != null
-                                ? buildMainIkanButtons(_cachedMainIkan!)
-                                : const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                    error:
-                        (e, _) =>
-                            _cachedMainIkan != null
-                                ? buildMainIkanButtons(_cachedMainIkan!)
-                                : Text(
-                                  e.toString(),
-                                  style: const TextStyle(
-                                    color: AppColors.danger,
-                                  ),
-                                ),
-                    data: (items) {
-                      _cachedMainIkan = items;
-                      return buildMainIkanButtons(items);
-                    },
-                  ),
-                ),
-
-                // ===== HOME MENU LAMA (GRIDVIEW / SUMMARY) =====
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Home Page Lama",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.dark,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      jenisikanState.when(
+                    // ===== MAIN BUTTONS =====
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: mainIkanAsync.when(
                         data: (items) {
-                          _cachedJenisIkan = items;
-                          return buildGrid(items);
+                          _cachedMainIkan = items;
+                          return buildMainIkanButtons(items);
                         },
                         loading:
                             () =>
-                                _cachedJenisIkan != null
-                                    ? buildGrid(_cachedJenisIkan!)
+                                _cachedMainIkan != null
+                                    ? buildMainIkanButtons(_cachedMainIkan!)
                                     : const Center(
                                       child: CircularProgressIndicator(),
                                     ),
                         error:
                             (e, _) =>
-                                (_connectionStatus == ConnectivityResult.none &&
-                                        _cachedJenisIkan != null)
-                                    ? buildGrid(_cachedJenisIkan!)
-                                    : Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Text(
-                                        "Error: $e",
-                                        style: const TextStyle(
-                                          color: AppColors.danger,
-                                        ),
+                                _cachedMainIkan != null
+                                    ? buildMainIkanButtons(_cachedMainIkan!)
+                                    : Text(
+                                      e.toString(),
+                                      style: const TextStyle(
+                                        color: AppColors.danger,
                                       ),
                                     ),
                       ),
-                    ],
+                    ),
+
+                    // ===== GRID LAMA =====
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Home Page Lama",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.dark,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          jenisikanState.when(
+                            data: (items) {
+                              _cachedJenisIkan = items;
+                              return buildGrid(items);
+                            },
+                            loading:
+                                () =>
+                                    _cachedJenisIkan != null
+                                        ? buildGrid(_cachedJenisIkan!)
+                                        : const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                            error:
+                                (e, _) =>
+                                    _cachedJenisIkan != null
+                                        ? buildGrid(_cachedJenisIkan!)
+                                        : Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Text(
+                                            "Error: $e",
+                                            style: const TextStyle(
+                                              color: AppColors.danger,
+                                            ),
+                                          ),
+                                        ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ===== Connection Bar: selalu muncul =====
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 60,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: _connectionBarColor,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(4),
+                    bottomRight: Radius.circular(4),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  // ===== UTILITY: BUILD MAIN BUTTONS =====
+  // ===== MAIN BUTTONS UTILITY =====
   Widget buildMainIkanButtons(List<dynamic> items) {
     return Column(
       children:
@@ -263,7 +290,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  // ===== UTILITY: BUILD GRID =====
+  // ===== GRID UTILITY =====
   Widget buildGrid(List<dynamic> items) {
     final mainIkanNames = ['KERAPU', 'TENGGIRI', 'KAKAP'];
     final mainItems =
@@ -370,7 +397,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-// ===== HEADER =====
+// ===== HEADER UTILITY =====
 Widget _buildHeader(
   String greeting,
   String formattedDate,
