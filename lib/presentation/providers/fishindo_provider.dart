@@ -184,6 +184,7 @@ import 'package:fishindo_app/data/models/success_model.dart';
 import 'package:fishindo_app/data/repositories/fishindo_repository.dart';
 import 'package:fishindo_app/data/repositories/jenisikan_repository.dart';
 import 'package:fishindo_app/core/services/storage_service.dart';
+import 'package:fishindo_app/presentation/providers/jenisikan_provider.dart';
 
 final _logger = Logger();
 

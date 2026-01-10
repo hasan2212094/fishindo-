@@ -1,14 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'package:fishindo_app/core/constants/app_colors.dart';
 import '../../providers/user_provider.dart';
-import '../fishindo/fishindo_list_page.dart';
 import '../../providers/jenisikan_provider.dart';
 import '../../providers/fishindo_provider.dart';
-import '../../pages/fishindo/fishindo_list_by_type_page.dart';
+import '../../providers/ikan_provider.dart';
+import '../fishindo/fishindo_list_page.dart';
+import '../fishindo/fishindo_list_by_type_page.dart';
+import 'package:fishindo_app/data/models/ikan_model.dart';
+import 'package:fishindo_app/data/models/jenisikan_model.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -18,6 +23,45 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
+  // ================= CONNECTIVITY =================
+  late final Connectivity _connectivity;
+  late final StreamSubscription<ConnectivityResult> _connectivitySubscription;
+  ConnectivityResult _connectionStatus = ConnectivityResult.none;
+  Color _connectionBarColor = Colors.green;
+
+  void _updateConnectionStatus(ConnectivityResult status) {
+    if (_connectionStatus == status) return;
+
+    setState(() {
+      _connectionStatus = status;
+      _connectionBarColor =
+          status == ConnectivityResult.none ? Colors.red : Colors.green;
+    });
+
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                status == ConnectivityResult.none
+                    ? 'Connection lost'
+                    : 'Connection restored',
+              ),
+              backgroundColor: _connectionBarColor,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+      });
+    }
+  }
+
+  // ================= CACHE =================
+  List<IkanModel>? _cachedMainIkan;
+  List<JenisIkanModel>? _cachedJenisIkan;
+
+  // ================= GREETING =================
   String getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good Morning';
@@ -33,6 +77,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   void initState() {
     super.initState();
+
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Color.fromARGB(255, 31, 57, 78),
@@ -40,14 +85,26 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
     );
 
+    _connectivity = Connectivity();
+    _connectivity.checkConnectivity().then(_updateConnectionStatus);
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+      _updateConnectionStatus,
+    );
+
     Future.microtask(() => ref.invalidate(userProfileProvider));
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final userProfile = ref.watch(userProfileProvider);
     final jenisikanState = ref.watch(jenisikanAllProvider);
-    final mainIkan = ['IKAN KERAPU', 'IKAN TENGGIRI', 'IKAN KAKAP'];
+    final mainIkanAsync = ref.watch(ikanAllProvider);
 
     return PopScope(
       canPop: false,
@@ -56,191 +113,211 @@ class _HomePageState extends ConsumerState<HomePage> {
       },
       child: Scaffold(
         backgroundColor: AppColors.light,
-        body: RefreshIndicator(
-          onRefresh: () async {
-            // 🔥 Refresh semua provider terkait
-            ref.invalidate(jenisikanAllProvider);
-
-            final jenisikanItems = await ref.read(jenisikanAllProvider.future);
-            for (var ikan in jenisikanItems) {
-              ref.invalidate(fishindoListProvider(ikan.id));
-            }
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                /// ===== HEADER =====
-                userProfile.when(
-                  data:
-                      (user) => _buildHeader(
-                        getGreeting(),
-                        getFormattedDate(),
-                        user.name,
-                        user.rolename,
-                      ),
-                  loading:
-                      () => const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                  error:
-                      (error, _) => Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          error.toString(),
-                          style: const TextStyle(color: AppColors.danger),
-                        ),
-                      ),
-                ),
-
-                /// ===== HOME BUTTONS UTAMA =====
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children:
-                        mainIkan.map((ikanName) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(60),
-                                backgroundColor: AppColors.purple,
-                              ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (_) => FishindoListByTypePage(
-                                          jenisIkanName: ikanName,
-                                        ),
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                ikanName,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white,
-                                ),
-                              ),
+        body: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(jenisikanAllProvider);
+                ref.invalidate(mainJenisIkanProvider);
+                final items = await ref.read(jenisikanAllProvider.future);
+                for (var ikan in items) {
+                  ref.invalidate(fishindoListProvider(ikan.id));
+                }
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ===== HEADER =====
+                    userProfile.when(
+                      data:
+                          (user) => _buildHeader(
+                            getGreeting(),
+                            getFormattedDate(),
+                            user.name,
+                            user.rolename,
+                          ),
+                      loading:
+                          () => const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                      error:
+                          (e, _) => Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              e.toString(),
+                              style: const TextStyle(color: AppColors.danger),
                             ),
-                          );
-                        }).toList(),
-                  ),
-                ),
+                          ),
+                    ),
 
-                /// ===== HOME MENU LAMA (GRIDVIEW / SUMMARY) =====
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Home Page Lama",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.dark,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      jenisikanState.when(
+                    // ===== MAIN IKAN BUTTON =====
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: mainIkanAsync.when(
                         data: (items) {
-                          // 🔹 Filter ikan utama dulu
-                          final mainIkanNames = ['KERAPU', 'TENGGIRI', 'KAKAP'];
-                          final mainItems =
-                              items
-                                  .where(
-                                    (ikan) => mainIkanNames.contains(
-                                      ikan.name.toUpperCase(),
-                                    ),
-                                  )
-                                  .toList();
-
-                          // 🔹 Ikan baru tambahan
-                          final otherItems =
-                              items
-                                  .where(
-                                    (ikan) =>
-                                        !mainIkanNames.contains(
-                                          ikan.name.toUpperCase(),
-                                        ),
-                                  )
-                                  .toList();
-
-                          final displayItems = [...mainItems, ...otherItems];
-
-                          return GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 12,
-                                  mainAxisSpacing: 12,
-                                  childAspectRatio: 1.25,
-                                ),
-                            itemCount: displayItems.length,
-                            itemBuilder: (context, index) {
-                              final ikan = displayItems[index];
-
-                              final fishListAsync = ref.watch(
-                                fishindoListProvider(ikan.id),
-                              );
-
-                              double totalBerat = 0;
-                              double totalHarga = 0;
-
-                              fishListAsync.whenData((list) {
-                                totalBerat = list.fold(
-                                  0,
-                                  (sum, item) => sum + item.timbangan,
-                                );
-                                totalHarga = list.fold(
-                                  0,
-                                  (sum, item) => sum + item.harga,
-                                );
-                              });
-
-                              return _fishBox(
-                                context,
-                                title: ikan.name.toUpperCase(),
-                                berat: "${totalBerat.toStringAsFixed(2)} Kg",
-                                harga: "Rp ${totalHarga.toStringAsFixed(0)}",
-                                jenisIkanId: ikan.id,
-                              );
-                            },
-                          );
+                          _cachedMainIkan = items;
+                          return buildMainIkanButtons(items);
                         },
                         loading:
-                            () => const Center(
-                              child: CircularProgressIndicator(),
-                            ),
+                            () =>
+                                _cachedMainIkan != null
+                                    ? buildMainIkanButtons(_cachedMainIkan!)
+                                    : const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
                         error:
-                            (e, _) => Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Text(
-                                "Error: $e",
-                                style: const TextStyle(color: AppColors.danger),
-                              ),
-                            ),
+                            (e, _) =>
+                                _cachedMainIkan != null
+                                    ? buildMainIkanButtons(_cachedMainIkan!)
+                                    : Text(
+                                      e.toString(),
+                                      style: const TextStyle(
+                                        color: AppColors.danger,
+                                      ),
+                                    ),
                       ),
-                    ],
+                    ),
+
+                    // ===== GRID LAMA =====
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: jenisikanState.when(
+                        data: (items) {
+                          _cachedJenisIkan = items;
+                          return buildGrid(items);
+                        },
+                        loading:
+                            () =>
+                                _cachedJenisIkan != null
+                                    ? buildGrid(_cachedJenisIkan!)
+                                    : const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                        error:
+                            (e, _) =>
+                                _cachedJenisIkan != null
+                                    ? buildGrid(_cachedJenisIkan!)
+                                    : Text(
+                                      e.toString(),
+                                      style: const TextStyle(
+                                        color: AppColors.danger,
+                                      ),
+                                    ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ===== CONNECTION BAR =====
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 60,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: _connectionBarColor,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(4),
+                    bottomRight: Radius.circular(4),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  /// ===== BOX IKAN =====
+  // ===== MAIN BUTTONS =====
+  Widget buildMainIkanButtons(List<IkanModel> items) {
+    return Column(
+      children:
+          items.map((ikan) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(60),
+                  backgroundColor: AppColors.purple,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (_) =>
+                              FishindoListByTypePage(jenisIkanName: ikan.name),
+                    ),
+                  );
+                },
+                onLongPress: () async {
+                  // Tombol long press untuk delete ikan
+                  final deleteNotifier = ref.read(ikanDeleteProvider.notifier);
+                  try {
+                    await deleteNotifier.delete(ikan.id);
+                    // Refresh main ikan supaya hilang dari homepage
+                    ref.invalidate(mainJenisIkanProvider);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ikan berhasil dihapus')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Gagal menghapus ikan: $e')),
+                    );
+                  }
+                },
+                child: Text(
+                  ikan.name.toUpperCase(),
+                  style: const TextStyle(fontSize: 18, color: Colors.white),
+                ),
+              ),
+            );
+          }).toList(),
+    );
+  }
+
+  // ===== GRID =====
+  Widget buildGrid(List<JenisIkanModel> items) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.25,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final ikan = items[index];
+        final fishListAsync = ref.watch(fishindoListProvider(ikan.id));
+
+        double totalBerat = 0;
+        double totalHarga = 0;
+
+        fishListAsync.whenData((list) {
+          totalBerat = list.fold(0, (s, i) => s + i.timbangan);
+          totalHarga = list.fold(0, (s, i) => s + i.harga);
+        });
+
+        return _fishBox(
+          context,
+          title: ikan.name.toUpperCase(),
+          berat: "${totalBerat.toStringAsFixed(2)} Kg",
+          harga: "Rp ${totalHarga.toStringAsFixed(0)}",
+          jenisIkanId: ikan.id,
+        );
+      },
+    );
+  }
+
   Widget _fishBox(
     BuildContext context, {
     required String title,
@@ -249,7 +326,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     required int jenisIkanId,
   }) {
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
       onTap: () {
         Navigator.push(
           context,
@@ -301,7 +377,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-/// ===== HEADER =====
+// ===== HEADER =====
 Widget _buildHeader(
   String greeting,
   String formattedDate,
@@ -321,71 +397,15 @@ Widget _buildHeader(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  greeting,
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                ),
-                Text(
-                  formattedDate,
-                  style: const TextStyle(color: Colors.white, fontSize: 10),
-                ),
-              ],
-            ),
-            const CircleAvatar(
-              backgroundImage: AssetImage("assets/icon/icon_sis.png"),
-              radius: 15,
-            ),
-          ],
+        Text(greeting, style: const TextStyle(color: Colors.white)),
+        Text(
+          formattedDate,
+          style: const TextStyle(color: Colors.white, fontSize: 10),
         ),
         const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppColors.light,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Welcome to',
-                        style: TextStyle(fontSize: 10, color: AppColors.dark),
-                      ),
-                      const Text(
-                        'FISHINDO',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Hi $name ($rolename)',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Image.asset(
-                'assets/image/illustration.png',
-                width: 90,
-                height: 90,
-              ),
-            ],
-          ),
+        Text(
+          'Hi $name ($rolename)',
+          style: const TextStyle(color: Colors.white),
         ),
       ],
     ),

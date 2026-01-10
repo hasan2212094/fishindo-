@@ -9,56 +9,80 @@ class JenisikanApi {
   final Dio _dio = Dio();
   final _logger = Logger();
 
-  Future<List<JenisIkanModel>> getAll() async {
+  /// 🔹 GET /jenisikan
+  Future<List<dynamic>> listJenisikanAll({int? ikanId}) async {
     final token = await StorageService.getToken();
+
     _logger.i('📥 GET: ${AppConfig.baseUrl}/jenisikan');
 
     final response = await _dio.get(
       '${AppConfig.baseUrl}/jenisikan',
+      queryParameters: ikanId != null ? {'ikan_id': ikanId} : null,
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
-    final raw = response.data;
-
-    List<dynamic> list = [];
-
-    if (raw is List) {
-      list = raw;
-    } else if (raw is Map && raw['data'] is List) {
-      list = raw['data'];
-    }
-
-    return list.map((item) => JenisIkanModel.fromJson(item)).toList();
+    return response.data['data'] as List<dynamic>;
   }
 
-  Future<JenisIkanModel> create(String name) async {
+  /// GET jenis ikan berdasarkan ikanId
+  Future<List<dynamic>> listJenisikanByIkan(int ikanId) async {
     final token = await StorageService.getToken();
+    final response = await _dio.get(
+      '${AppConfig.baseUrl}/jenisikan/by-ikan/$ikanId',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+
+    return response.data['data'] ?? [];
+  }
+
+  /// 🔹 GET /jenisikan/{id}
+  Future<Map<String, dynamic>> getById(int id) async {
+    final token = await StorageService.getToken();
+
+    _logger.i('🔍 GET: ${AppConfig.baseUrl}/jenisikan/$id');
+
+    final response = await _dio.get(
+      '${AppConfig.baseUrl}/jenisikan/$id',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+
+    return response.data['data'];
+  }
+
+  /// 🔹 POST /jenisikan
+  Future<Map<String, dynamic>> create(String name, int ikanId) async {
+    final token = await StorageService.getToken();
+
     _logger.i('📤 POST: ${AppConfig.baseUrl}/jenisikan');
 
     final response = await _dio.post(
       '${AppConfig.baseUrl}/jenisikan',
-      data: {'name': name},
+      data: {'name': name, 'ikan_id': ikanId},
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
-    return JenisIkanModel.fromJson(response.data);
+    return response.data;
   }
 
-  Future<JenisIkanModel> update(int id, String name) async {
+  /// 🔹 PUT /jenisikan/{id}
+  Future<Map<String, dynamic>> update(int id, String name, int ikanId) async {
     final token = await StorageService.getToken();
+
     _logger.i('✏️ PUT: ${AppConfig.baseUrl}/jenisikan/$id');
 
     final response = await _dio.put(
       '${AppConfig.baseUrl}/jenisikan/$id',
-      data: {'name': name},
+      data: {'name': name, 'ikan_id': ikanId},
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
-    return JenisIkanModel.fromJson(response.data);
+    return response.data;
   }
 
-  Future<SuccessModel> delete(int id) async {
+  /// 🔹 DELETE /jenisikan/{id} (PERMANEN)
+  Future<Map<String, dynamic>> delete(int id) async {
     final token = await StorageService.getToken();
+
     _logger.w('🗑️ DELETE: ${AppConfig.baseUrl}/jenisikan/$id');
 
     final response = await _dio.delete(
@@ -66,18 +90,20 @@ class JenisikanApi {
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
-    return SuccessModel.fromJson(response.data);
+    return response.data;
   }
 
-  Future<JenisIkanModel> getById(int id) async {
+  /// 🔹 GET /ikan (dropdown)
+  Future<List<dynamic>> fetchIkan() async {
     final token = await StorageService.getToken();
-    _logger.i('🔍 GET BY ID: ${AppConfig.baseUrl}/jenisikan/$id');
+
+    _logger.i('📥 GET: ${AppConfig.baseUrl}/ikan');
 
     final response = await _dio.get(
-      '${AppConfig.baseUrl}/jenisikan/$id',
+      '${AppConfig.baseUrl}/ikan',
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
-    return JenisIkanModel.fromJson(response.data);
+    return response.data['data'] as List<dynamic>;
   }
 }

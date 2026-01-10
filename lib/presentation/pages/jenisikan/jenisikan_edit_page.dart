@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:fishindo_app/data/models/success_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fishindo_app/core/constants/app_colors.dart';
+import 'package:fishindo_app/data/models/ikan_model.dart';
 import 'package:fishindo_app/presentation/providers/jenisikan_provider.dart';
-import 'package:fishindo_app/presentation/providers/fishindo_provider.dart';
-import 'package:fishindo_app/data/models/jenisikan_model.dart';
 
 class JenisikanEditPage extends ConsumerStatefulWidget {
   final int id;
@@ -15,15 +15,15 @@ class JenisikanEditPage extends ConsumerStatefulWidget {
 
 class _JenisikanEditPageState extends ConsumerState<JenisikanEditPage> {
   final _formKey = GlobalKey<FormState>();
-
   final TextEditingController nameController = TextEditingController();
-  bool isSuccess = false;
+  IkanModel? selectedIkan;
+  bool isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
 
-    // invalidate data lama agar fetch ulang
+    // Fetch ulang data jenis ikan
     Future.microtask(() {
       ref.invalidate(jenisikanByIdProvider(widget.id));
     });
@@ -38,45 +38,32 @@ class _JenisikanEditPageState extends ConsumerState<JenisikanEditPage> {
   @override
   Widget build(BuildContext context) {
     final jenisikanAsync = ref.watch(jenisikanByIdProvider(widget.id));
+    final ikanAsync = ref.watch(jenisikanIkanProvider);
     final editState = ref.watch(jenisikanEditProvider);
 
-    // Fungsi update
-    void update() async {
-      if (!mounted) return;
+    void updateJenisikan() async {
+      if (_formKey.currentState!.validate() && selectedIkan != null) {
+        setState(() => isSubmitting = true);
 
-      if (_formKey.currentState!.validate()) {
-        setState(() {
-          isSuccess = false;
-        });
+        await ref
+            .read(jenisikanEditProvider.notifier)
+            .update(widget.id, nameController.text, selectedIkan!.id);
 
-        try {
-          await ref
-              .read(jenisikanEditProvider.notifier)
-              .update(widget.id, nameController.text);
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text("Error: $e")));
-          }
-          return;
-        }
+        setState(() => isSubmitting = false);
+      } else if (selectedIkan == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Pilih ikan terlebih dahulu")),
+        );
       }
     }
 
     // Listener untuk sukses update
-    ref.listen<AsyncValue<JenisIkanModel?>>(jenisikanEditProvider, (
+    ref.listen<AsyncValue<SuccessModel>>(jenisikanEditProvider, (
       previous,
       next,
     ) {
       if (next is AsyncData && next.value != null) {
-        // refresh list (halaman list supaya terlihat perubahan)
-        ref.invalidate(jenisikanAllProvider);
-        setState(() {
-          isSuccess = true;
-        });
-
-        if (!context.mounted) return;
+        ref.invalidate(jenisikanAllProvider); // refresh list
 
         showDialog(
           context: context,
@@ -84,7 +71,7 @@ class _JenisikanEditPageState extends ConsumerState<JenisikanEditPage> {
               (context) => AlertDialog(
                 title: const Text("Success", textAlign: TextAlign.center),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 content: const Column(
                   mainAxisSize: MainAxisSize.min,
@@ -119,7 +106,6 @@ class _JenisikanEditPageState extends ConsumerState<JenisikanEditPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: AppColors.white,
-          iconSize: 18,
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -128,10 +114,19 @@ class _JenisikanEditPageState extends ConsumerState<JenisikanEditPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.save),
+            icon:
+                isSubmitting
+                    ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: AppColors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                    : const Icon(Icons.save),
             color: AppColors.white,
-            iconSize: 18,
-            onPressed: update,
+            onPressed: isSubmitting ? null : updateJenisikan,
           ),
         ],
       ),
@@ -140,10 +135,11 @@ class _JenisikanEditPageState extends ConsumerState<JenisikanEditPage> {
         data: (jenisikan) {
           if (nameController.text.isEmpty) {
             nameController.text = jenisikan.name;
+            // bisa set selectedIkan juga kalau ada info ikan_id di model
           }
 
           return Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: Form(
               key: _formKey,
               child: SingleChildScrollView(
@@ -151,54 +147,59 @@ class _JenisikanEditPageState extends ConsumerState<JenisikanEditPage> {
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 child: Column(
                   children: [
-                    if (editState.isLoading)
-                      Transform.scale(
-                        scale: 0.5,
-                        child: const CircularProgressIndicator(),
-                      ),
-                    if (editState.hasError)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 4,
-                              horizontal: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.danger,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              "Error: ${editState.error}",
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    // Field Nomor Workorder
+                    // Nama Jenis Ikan
                     TextFormField(
                       controller: nameController,
                       decoration: const InputDecoration(
                         labelText: 'Jenis Ikan',
-                        labelStyle: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.dark,
-                        ),
-                        border: InputBorder.none,
+                        border: OutlineInputBorder(),
                       ),
-                      style: const TextStyle(fontSize: 12),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Jenis ikan tidak boleh kosong';
-                        }
-                        return null;
-                      },
+                      validator:
+                          (value) =>
+                              value == null || value.isEmpty
+                                  ? 'Jenis ikan tidak boleh kosong'
+                                  : null,
                     ),
-                    const Divider(thickness: 0.5, height: 0),
+                    const SizedBox(height: 16),
+
+                    // Dropdown Pilih Ikan
+                    ikanAsync.when(
+                      data: (ikans) {
+                        return DropdownButtonFormField<IkanModel>(
+                          value: selectedIkan,
+                          decoration: const InputDecoration(
+                            labelText: 'Pilih Ikan',
+                            border: OutlineInputBorder(),
+                          ),
+                          items:
+                              ikans.map((ikan) {
+                                return DropdownMenuItem(
+                                  value: ikan,
+                                  child: Text(ikan.name),
+                                );
+                              }).toList(),
+                          onChanged:
+                              (value) => setState(() => selectedIkan = value),
+                          validator:
+                              (value) =>
+                                  value == null ? 'Pilih ikan dulu' : null,
+                        );
+                      },
+                      loading:
+                          () =>
+                              const Center(child: CircularProgressIndicator()),
+                      error: (e, st) => Text('Error: $e'),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Error atau Loading State
+                    if (editState.isLoading)
+                      const Center(child: CircularProgressIndicator()),
+                    if (editState.hasError)
+                      Text(
+                        "Error: ${editState.error}",
+                        style: const TextStyle(color: Colors.red),
+                      ),
                   ],
                 ),
               ),
