@@ -25,8 +25,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  bool _rememberMe = false;
+  bool _isValid = false;
+  bool _credentialsLoaded = false;
+
   late final Connectivity _connectivity;
-  late final Stream<ConnectivityResult> _connectivityStream;
   late final StreamSubscription<ConnectivityResult> _connectivitySubscription;
   ConnectivityResult _connectionStatus = ConnectivityResult.none;
 
@@ -36,22 +39,72 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     // 🔹 Setup koneksi
     _connectivity = Connectivity();
-    _connectivityStream = _connectivity.onConnectivityChanged;
-
-    // cek koneksi awal
     _connectivity.checkConnectivity().then((result) {
-      setState(() => _connectionStatus = result);
+      if (mounted) setState(() => _connectionStatus = result);
+    });
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      result,
+    ) {
+      if (mounted) setState(() => _connectionStatus = result);
     });
 
-    // listen perubahan koneksi
-    _connectivitySubscription = _connectivityStream.listen((result) {
-      setState(() => _connectionStatus = result);
-    });
+    // 🔹 Listener validasi
+    _emailController.addListener(_validateForm);
+    _passwordController.addListener(_validateForm);
 
-    // 🔹 Load saved email/password
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadSavedCredentials();
-    });
+    // 🔹 Load saved credentials hanya sekali
+    _loadSavedCredentials();
+  }
+
+  void _validateForm() {
+    final valid =
+        _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
+    if (_isValid != valid && mounted) setState(() => _isValid = valid);
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    if (_credentialsLoaded) return;
+    _credentialsLoaded = true;
+
+    final prefs = await SharedPreferences.getInstance();
+    final remember = prefs.getBool('remember_me') ?? false;
+
+    if (remember) {
+      _emailController.text = prefs.getString('email') ?? '';
+      _passwordController.text = prefs.getString('password') ?? '';
+    }
+
+    if (mounted) setState(() => _rememberMe = remember);
+  }
+
+  void _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    try {
+      await ref.read(authProvider.notifier).login(email, password);
+
+      // 🔹 Save credentials hanya saat login berhasil
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('remember_me', _rememberMe);
+      if (_rememberMe) {
+        await prefs.setString('email', email);
+        await prefs.setString('password', password);
+      } else {
+        await prefs.remove('email');
+        await prefs.remove('password');
+      }
+
+      if (mounted) Navigator.pushReplacementNamed(context, '/homemenu');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Login gagal: $e")));
+      }
+    }
   }
 
   @override
@@ -62,44 +115,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
-  /// ===== Load email & password tersimpan =====
-  Future<void> _loadSavedCredentials() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedEmail = prefs.getString('email') ?? '';
-    final savedPassword = prefs.getString('password') ?? '';
-
-    _emailController.text = savedEmail;
-    _passwordController.text = savedPassword;
-  }
-
-  /// ===== Simpan email & password =====
-  Future<void> _saveCredentials(String email, String password) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('email', email);
-    await prefs.setString('password', password);
-  }
-
-  void _login() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    await ref
-        .read(authProvider.notifier)
-        .login(_emailController.text, _passwordController.text);
-
-    // Simpan credentials
-    await _saveCredentials(_emailController.text, _passwordController.text);
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final appVersion = ref.watch(appVersionProvider);
-
-    ref.listen(authProvider, (previous, next) {
-      if (next is AsyncData && next.value != null) {
-        Navigator.pushReplacementNamed(context, '/homemenu');
-      }
-    });
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -147,6 +166,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                 ),
                 const SizedBox(height: 24),
+
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
@@ -177,7 +197,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
                 const SizedBox(height: 12),
 
-                /// 🔹 Status koneksi
                 Text(
                   _connectionStatus == ConnectivityResult.none
                       ? 'Tidak ada koneksi internet'
@@ -190,31 +209,50 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     fontSize: 12,
                   ),
                 ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _rememberMe,
+                      onChanged:
+                          (val) => setState(() => _rememberMe = val ?? false),
+                    ),
+                    const Text("Remember me"),
+                  ],
+                ),
                 const SizedBox(height: 16),
 
                 authState.when(
                   data:
-                      (data) => ElevatedButton(
+                      (_) => ElevatedButton(
+                        onPressed: _isValid ? _login : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.purple,
+                          backgroundColor:
+                              _isValid ? AppColors.purple : Colors.grey,
                           minimumSize: const Size(double.infinity, 50),
                         ),
-                        onPressed: _login,
                         child: const Text(
                           'Login',
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
-                  loading: () => const CircularProgressIndicator(),
+                  loading:
+                      () => const SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: CircularProgressIndicator(),
+                      ),
                   error:
                       (e, _) => Column(
                         children: [
                           ElevatedButton(
+                            onPressed: _isValid ? _login : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.purple,
+                              backgroundColor:
+                                  _isValid ? AppColors.purple : Colors.grey,
                               minimumSize: const Size(double.infinity, 50),
                             ),
-                            onPressed: _login,
                             child: const Text(
                               'Login',
                               style: TextStyle(color: Colors.white),

@@ -24,4 +24,12 @@ class JenisIkanModel {
               : null,
     );
   }
+
+  /// 🔒 Aman: status_kelompok dari relasi ikan
+  int get statusKelompok => ikan?.status_kelompok ?? 0;
+
+  /// 🔒 Nama status untuk UI
+  String get statusKelompokText => statusKelompok == 0 ? "Pelagis" : "Demersal";
+
+  String get statusKelompokString => statusKelompokText;
 }

@@ -4,6 +4,7 @@ import 'presentation/pages/auth/login_page.dart';
 import 'presentation/pages/home/home_menu.dart';
 import 'presentation/pages/ikan/ikan_add_page.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'routes.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -18,10 +19,8 @@ class MyApp extends ConsumerWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      routes: {
-        '/': (context) => const HomeMenuPage(), // homepage route
-        '/ikanadd': (context) => const IkanAddPage(),
-      },
+      initialRoute: '/splash',
+      onGenerateRoute: Routes.generateRoute,
       builder: (context, child) {
         return authState.when(
           data: (user) {

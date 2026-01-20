@@ -33,10 +33,10 @@ class IkanRepository {
   }
 
   /// Tambah Jenisikan baru
-  Future<IkanModel> createIkan(String name) async {
+  Future<IkanModel> createIkan(String name, int statuskategori) async {
     try {
       _logger.i('📤 Creating Ikan...');
-      return await _api.create(name);
+      return await _api.create(name, statuskategori);
     } catch (e, st) {
       _logger.e('❌ Error createIkan: $e', stackTrace: st);
       rethrow;
@@ -44,10 +44,10 @@ class IkanRepository {
   }
 
   /// Update Jenisikan
-  Future<IkanModel> updateIkan(int id, String name) async {
+  Future<IkanModel> updateIkan(int id, String name, int statuskategori) async {
     try {
       _logger.i('✏️ Updating Ikan ID: $id');
-      return await _api.update(id, name);
+      return await _api.update(id, name, statuskategori);
     } catch (e, st) {
       _logger.e('❌ Error updateIkan: $e', stackTrace: st);
       rethrow;

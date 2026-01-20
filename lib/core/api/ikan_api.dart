@@ -31,26 +31,27 @@ class IkanApi {
     return list.map((item) => IkanModel.fromJson(item)).toList();
   }
 
-  Future<IkanModel> create(String name) async {
+  Future<IkanModel> create(String name, int status_kelompok) async {
     final token = await StorageService.getToken();
     _logger.i('📤 POST: ${AppConfig.baseUrl}/ikan');
 
     final response = await _dio.post(
       '${AppConfig.baseUrl}/ikan',
-      data: {'name': name},
+      data: {'name': name, 'status_kelompok': status_kelompok},
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
     return IkanModel.fromJson(response.data);
   }
 
-  Future<IkanModel> update(int id, String name) async {
+  Future<IkanModel> update(int id, String name, int status_kelompok) async {
     final token = await StorageService.getToken();
     _logger.i('✏️ PUT: ${AppConfig.baseUrl}/ikan/$id');
+    _logger.i('Data: name=$name, status_kelompok=$status_kelompok');
 
     final response = await _dio.put(
       '${AppConfig.baseUrl}/ikan/$id',
-      data: {'name': name},
+      data: {'name': name, 'status_kelompok': status_kelompok},
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 
@@ -59,7 +60,7 @@ class IkanApi {
 
   Future<SuccessModel> delete(int id) async {
     final token = await StorageService.getToken();
-    _logger.w('🗑️ DELETE: ${AppConfig.baseUrl}/ikan/$id');
+    _logger.w('🗑️ DELETE: ${AppConfig.baseUrl}/jenisikan/$id');
 
     final response = await _dio.delete(
       '${AppConfig.baseUrl}/ikan/$id',
@@ -74,7 +75,7 @@ class IkanApi {
     _logger.i('🔍 GET BY ID: ${AppConfig.baseUrl}/ikan/$id');
 
     final response = await _dio.get(
-      '${AppConfig.baseUrl}/ikan/$id',
+      '${AppConfig.baseUrl}/ikan/$id', // sesuai route server
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
 

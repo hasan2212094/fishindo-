@@ -181,33 +181,33 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                     ),
 
-                    // ===== GRID LAMA =====
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: jenisikanState.when(
-                        data: (items) {
-                          _cachedJenisIkan = items;
-                          return buildGrid(items);
-                        },
-                        loading:
-                            () =>
-                                _cachedJenisIkan != null
-                                    ? buildGrid(_cachedJenisIkan!)
-                                    : const Center(
-                                      child: CircularProgressIndicator(),
-                                    ),
-                        error:
-                            (e, _) =>
-                                _cachedJenisIkan != null
-                                    ? buildGrid(_cachedJenisIkan!)
-                                    : Text(
-                                      e.toString(),
-                                      style: const TextStyle(
-                                        color: AppColors.danger,
-                                      ),
-                                    ),
-                      ),
-                    ),
+                    // // ===== GRID LAMA =====
+                    // Padding(
+                    //   padding: const EdgeInsets.all(16),
+                    //   child: jenisikanState.when(
+                    //     data: (items) {
+                    //       _cachedJenisIkan = items;
+                    //       return buildGrid(items);
+                    //     },
+                    //     loading:
+                    //         () =>
+                    //             _cachedJenisIkan != null
+                    //                 ? buildGrid(_cachedJenisIkan!)
+                    //                 : const Center(
+                    //                   child: CircularProgressIndicator(),
+                    //                 ),
+                    //     error:
+                    //         (e, _) =>
+                    //             _cachedJenisIkan != null
+                    //                 ? buildGrid(_cachedJenisIkan!)
+                    //                 : Text(
+                    //                   e.toString(),
+                    //                   style: const TextStyle(
+                    //                     color: AppColors.danger,
+                    //                   ),
+                    //                 ),
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
@@ -242,41 +242,91 @@ class _HomePageState extends ConsumerState<HomePage> {
           items.map((ikan) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(60),
-                  backgroundColor: AppColors.purple,
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (_) =>
-                              FishindoListByTypePage(jenisIkanName: ikan.name),
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final jenisIkanAsync = ref.watch(
+                    jenisikanByIkanProvider(ikan.id),
+                  );
+
+                  return ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(60),
+                      backgroundColor: AppColors.purple,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (_) => FishindoListByTypePage(
+                                jenisIkanName: ikan.name,
+                              ),
+                        ),
+                      );
+                    },
+                    onLongPress: () async {
+                      final deleteNotifier = ref.read(
+                        ikanDeleteProvider.notifier,
+                      );
+                      try {
+                        await deleteNotifier.delete(ikan.id);
+                        ref.invalidate(mainJenisIkanProvider);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Ikan berhasil dihapus'),
+                          ),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Gagal menghapus ikan: $e')),
+                        );
+                      }
+                    },
+                    child: jenisIkanAsync.when(
+                      data: (jenisList) {
+                        final count = jenisList.length;
+                        final displayText =
+                            count > 0
+                                ? "${ikan.name.toUpperCase()} ($count)"
+                                : ikan.name.toUpperCase();
+                        return Text(
+                          displayText,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                      loading:
+                          () => Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                "Loading...",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
+                      error:
+                          (_, __) => Text(
+                            ikan.name.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                            ),
+                          ),
                     ),
                   );
                 },
-                onLongPress: () async {
-                  // Tombol long press untuk delete ikan
-                  final deleteNotifier = ref.read(ikanDeleteProvider.notifier);
-                  try {
-                    await deleteNotifier.delete(ikan.id);
-                    // Refresh main ikan supaya hilang dari homepage
-                    ref.invalidate(mainJenisIkanProvider);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Ikan berhasil dihapus')),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Gagal menghapus ikan: $e')),
-                    );
-                  }
-                },
-                child: Text(
-                  ikan.name.toUpperCase(),
-                  style: const TextStyle(fontSize: 18, color: Colors.white),
-                ),
               ),
             );
           }).toList(),
@@ -387,7 +437,7 @@ Widget _buildHeader(
   return Container(
     padding: const EdgeInsets.all(20),
     decoration: const BoxDecoration(
-      color: Color.fromARGB(255, 31, 57, 78),
+      color: AppColors.purple,
       border: Border(bottom: BorderSide(width: 10, color: AppColors.warning)),
       borderRadius: BorderRadius.only(
         bottomLeft: Radius.circular(30),
@@ -397,15 +447,92 @@ Widget _buildHeader(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(greeting, style: const TextStyle(color: Colors.white)),
-        Text(
-          formattedDate,
-          style: const TextStyle(color: Colors.white, fontSize: 10),
+        const SizedBox(height: 10),
+
+        /// ===== TOP ROW (Greeting + Avatar) =====
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  greeting,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                Text(
+                  formattedDate,
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                ),
+              ],
+            ),
+            const CircleAvatar(
+              radius: 16,
+              backgroundImage: AssetImage(
+                "assets/icon/icon_sis.png", // ganti jika perlu
+              ),
+            ),
+          ],
         ),
+
         const SizedBox(height: 20),
-        Text(
-          'Hi $name ($rolename)',
-          style: const TextStyle(color: Colors.white),
+
+        /// ===== WELCOME CARD =====
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.light,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.3),
+                blurRadius: 5,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Welcome to',
+                      style: TextStyle(fontSize: 10, color: AppColors.dark),
+                    ),
+                    const Text(
+                      'FISHINDO APP',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.dark,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Hi $name ($rolename)',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.dark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              /// ===== ILLUSTRATION =====
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset(
+                  'assets/image/illustration.png',
+                  width: 90,
+                  height: 90,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     ),
